@@ -12,6 +12,18 @@ def rule_check(ruleset_dict, odr):
                 return False
     return True
 
+def order_fixer(ruleset_dict, odr):
+    for j in range(len(odr)):
+        rule1 = ruleset_dict.get(odr[j], {}).get('rule1', set())
+        rule2 = ruleset_dict.get(odr[j], {}).get('rule2', set())
+        for k in range(j):
+            if odr[k] in rule2:
+                odr[j], odr[k] = odr[k], odr[j]
+        for k in range(j+1, len(odr)):
+            if odr[k] in rule1:
+                odr[j], odr[k] = odr[k], odr[j]
+    return odr
+
 def main():
     df = pl.read_csv("./Day5/file.csv", has_header=False, separator='|', infer_schema_length=10000)
     df1 = df.filter(df['column_1'].is_not_null() & df['column_2'].is_not_null())
@@ -32,14 +44,19 @@ def main():
 
     # Apply rule_check to each row of df2
     sum = 0
+    sum2= 0
     for row in df2.iter_rows(named=True):
         odr = row['column_1']
         odr_list = odr.split(',')
         odr = [int(i) for i in odr_list]
         if rule_check(ruleset_dict, odr):
             sum += odr[len(odr) // 2]
-
+        else:
+            while not rule_check(ruleset_dict, odr):
+                odr = order_fixer(ruleset_dict, odr)
+                
+            sum2 += odr[len(odr) // 2]
     print("Answer for part 1:", sum)
-
+    print("Answer for part 2:", sum2)
 if __name__ == "__main__":
     main()
