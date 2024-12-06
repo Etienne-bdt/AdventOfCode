@@ -1,138 +1,121 @@
 import polars as pl
 import numpy as np
+import multiprocessing as mp
+from tqdm import tqdm
 
-class guard():
-    def __init__(self,map):
-        self.map = map.copy()
-        self.initialmap = map.copy()
-        self.direction = "up"
-        self.posx, self.posy = self.find_start(map)
-        self.previouspos = (self.posx,self.posy)
-        self.initialpath = [(self.posx,self.posy,self.direction)]
-        self.currentpath = [(self.posx,self.posy,self.direction)]
-        self.loop_list = []
-        self.walk()
-        
+def find_start(map):
+    for i in range(len(map)):
+        for j in range(len(map[i][0])):
+            if map[i][0][j] == "^":
+                return i, j
+    return 0, 0
 
-    def find_loop(self, map):
-        #Find all possible way that the guard ends up in a loop
-        self.map = map.copy()
-        num_loops = 0
-        candidates = []
-        for k in range(len(self.initialpath)):
-            x,y,_ = self.initialpath[k]
-            candidates.append((x,y)) 
-        for i in range(1,len(candidates)):
-                    self.map = self.initialmap.copy()
-                    self.posx, self.posy,self.direction = self.initialpath[i-1]
-                    self.currentpath = self.initialpath[:i].copy()
-                    try:
-                        if self.map[candidates[i][0]][0][candidates[i][1]] != "#" and self.map[candidates[i][0]][0][candidates[i][1]] != "^":
-                            self.map[candidates[i][0]][0] = self.map[candidates[i][0]][0][:candidates[i][1]]+"O"+self.map[candidates[i][0]][0][candidates[i][1]+1:]
-                            if (candidates[i][0], candidates[i][1]) not in self.loop_list:
-                                if self.walk_in_loops():
-                                    self.loop_list.append((candidates[i][0], candidates[i][1]))
-                                    num_loops += 1
-                    except IndexError:
-                        pass
+def check_direction(map, posx, posy, direction):
+    if direction == "up":
+        if map[posx-1][0][posy] == "#" or map[posx-1][0][posy] == "O":
+            return "right", False
+    elif direction == "right":
+        if map[posx][0][posy+1] == "#" or map[posx][0][posy+1] == "O":
+            return "down", False
+    elif direction == "down":
+        if map[posx+1][0][posy] == "#" or map[posx+1][0][posy] == "O":
+            return "left", False
+    elif direction == "left":
+        if map[posx][0][posy-1] == "#" or map[posx][0][posy-1] == "O":
+            return "up", False
+    return direction, True
 
-        return num_loops
+def walk(map, posx, posy, direction):
+    initialpath = [(posx, posy, direction)]
+    while True:
+        try:
+            direction, can_move = check_direction(map, posx, posy, direction)
+            if can_move:
+                map[posx][0] = map[posx][0][:posy] + "X" + map[posx][0][posy+1:]
+                if direction == "up":
+                    posx -= 1
+                elif direction == "down":
+                    posx += 1
+                elif direction == "left":
+                    posy -= 1
+                elif direction == "right":
+                    posy += 1
+                initialpath.append((posx, posy, direction))
+                map[posx][0] = map[posx][0][:posy] + "^" + map[posx][0][posy+1:]
+        except IndexError:
+            map[posx][0] = map[posx][0][:posy] + "X" + map[posx][0][posy+1:]
+            return map, initialpath
 
-    def find_start(self, map):
-        for i in range(len(map)):
-            for j in range(len(map[i][0])):
-                if map[i][0][j] == "^":
-                    return i,j
-        return 0,0
-    
-    def walk_in_loops(self):
-        while True:
-            try:
-                if self.check_direction_loop():
+def check_direction_loop(currentpath, previouspos, posx, posy):
+    if len(currentpath) > 3:
+        try:
+            for idx in range(len(currentpath[:-2])):
+                x, y, _ = currentpath[idx]
+                x1, y1, _ = currentpath[idx+1]
+                if [(x, y), (x1, y1)] == [previouspos, (posx, posy)]:
                     return True
-                if self.check_direction():
+        except ValueError:
+            pass
+    return False
 
-                    self.previouspos = (self.posx,self.posy)
-                    if self.direction == "up":
-                        #self.map[self.posx][0] = self.map[self.posx][0][:self.posy]+"X"+self.map[self.posx][0][self.posy+1:]
-                        self.posx -= 1
-                    elif self.direction == "down":
-                        #self.map[self.posx][0] = self.map[self.posx][0][:self.posy]+"X"+self.map[self.posx][0][self.posy+1:]
-                        self.posx += 1
-                    elif self.direction == "left":
-                        #self.map[self.posx][0] = self.map[self.posx][0][:self.posy]+"X"+self.map[self.posx][0][self.posy+1:]
-                        self.posy -= 1
-                    elif self.direction == "right":
-                        #self.map[self.posx][0] = self.map[self.posx][0][:self.posy]+"X"+self.map[self.posx][0][self.posy+1:]
-                        self.posy += 1
+def walk_in_loops(map, initialmap, initialpath, posx, posy, direction):
+    currentpath = initialpath.copy()
+    previouspos = (posx, posy)
+    while True:
+        lenx, leny = len(map), len(map[0][0])
+        if posx < 0 or posx >= lenx-1 or posy < 0 or posy >= leny-1:
+            return False
+        if check_direction_loop(currentpath, previouspos, posx, posy):
+            return True
+        direction, can_move = check_direction(map, posx, posy, direction)
+        if can_move:
+            previouspos = (posx, posy)
+            if direction == "up":
+                posx -= 1
+            elif direction == "down":
+                posx += 1
+            elif direction == "left":
+                posy -= 1
+            elif direction == "right":
+                posy += 1
 
-                    self.currentpath.append((self.posx,self.posy,self.direction))
-            except IndexError:
+            if posx < 0 or posx >= lenx-1 or posy < 0 or posy >= leny-1:
                 return False
-
-    def walk(self):
-        while True:
-            try:
-                if self.check_direction():
-                    self.map[self.posx][0] = self.map[self.posx][0][:self.posy]+"X"+self.map[self.posx][0][self.posy+1:]
-                    if self.direction == "up":
-                        self.posx -= 1
-                    elif self.direction == "down":
-                        self.posx += 1
-                    elif self.direction == "left":
-                        self.posy -= 1
-                    elif self.direction == "right":
-                        self.posy += 1
-                    self.initialpath.append((self.posx,self.posy,self.direction))
-                    self.map[self.posx][0] = self.map[self.posx][0][:self.posy]+"^"+self.map[self.posx][0][self.posy+1:]
-            except IndexError:
-                self.map[self.posx][0] = self.map[self.posx][0][:self.posy]+"X"+self.map[self.posx][0][self.posy+1:]
-                return self.map
-
-    def check_direction_loop(self):
-        if len(self.currentpath) >3:
-            try:
-                for idx in range(len(self.currentpath[:-2]) ):
-                    x,y,_ = self.currentpath[idx]
-                    x1,y1,_ = self.currentpath[idx+1]
-                    if [(x,y),(x1,y1)] == [self.previouspos, (self.posx, self.posy)]:
-                        return True
-            except ValueError:
-                pass    
-        return False
         
+            currentpath.append((posx, posy, direction))
+
+def find_loop(args):
+    map, initialmap, initialpath, candidate, wall_list = args
+    posx, posy, direction = initialpath[candidate-1]
+    wall_pos = (initialpath[candidate][0], initialpath[candidate][1])
     
-    def check_direction(self):
-        if self.direction == "up":
-            if self.map[self.posx-1][0][self.posy] == "#" or self.map[self.posx-1][0][self.posy] == "O":
-                self.direction = "right"
-                return False
-        elif self.direction == "right":
-            if self.map[self.posx][0][self.posy+1] == "#" or self.map[self.posx][0][self.posy+1] == "O":
-                self.direction = "down"
-                return False
-        elif self.direction == "down":
-            if self.map[self.posx+1][0][self.posy] == "#" or self.map[self.posx+1][0][self.posy] == "O":
-                self.direction = "left"
-                return False
-        elif self.direction == "left":
-            if self.map[self.posx][0][self.posy-1] == "#" or self.map[self.posx][0][self.posy-1] == "O":
-                self.direction = "up"
-                return False
-        return True
-    
+    if wall_pos in wall_list:
+        return 0
+    wall_list.add(wall_pos)
+    if initialmap[wall_pos[0]][0][wall_pos[1]] not in ["#", "^"]:
+        map[wall_pos[0]][0] = map[wall_pos[0]][0][:wall_pos[1]] + "O" + map[wall_pos[0]][0][wall_pos[1]+1:]
+        if (walk_in_loops(map, initialmap, initialpath[:candidate], posx, posy, direction)):
+            return 1
+    return 0
+
 def main():
     map = pl.read_csv("./Day6/file.txt", has_header=False).to_numpy()
-    #print(map[1][0][0])
-    gd = guard(map.copy())
-    sum = 0
-    for i in range(len(gd.map)):
-        for j in range(len(gd.map[i][0])):
-            if gd.map[i][0][j] == "X":
-                sum += 1
-
-    print("Answer to part 1:", sum)
-    print("Answer to part 2:", gd.find_loop(map))
+    posx, posy = find_start(map.copy())
+    direction = "up"
+    map, initialpath = walk(map.copy(), posx, posy, direction)
+    
+    total = sum(1 for i in range(len(map)) for j in range(len(map[i][0])) if map[i][0][j] == "X")
+    print("Answer to part 1:", total)
+    
+    candidates = [(x, y) for x, y, _ in initialpath]
+    wall_list = set()
+    args = [(map.copy(), map.copy(), initialpath, i, wall_list) for i in range(1, len(candidates))]
+    
+    with mp.Pool() as pool:
+        results = list(tqdm(pool.imap(find_loop, args), total=len(args)))
+    
+    num_loops = sum(results)
+    print("Answer to part 2:", num_loops)
 
 if __name__ == "__main__":
     main()
