@@ -47,7 +47,7 @@ def walk(map, posx, posy, direction):
             return map, initialpath
 
 def check_direction_loop(currentpath, previouspos, posx, posy):
-    if len(currentpath) > 3:
+    if len(currentpath) % 3000==0:
         try:
             for idx in range(len(currentpath[:-2])):
                 x, y, _ = currentpath[idx]
@@ -110,11 +110,10 @@ def main():
     candidates = [(x, y) for x, y, _ in initialpath]
     wall_list = set()
     args = [(map.copy(), map.copy(), initialpath, i, wall_list) for i in range(1, len(candidates))]
-    
-    with mp.Pool() as pool:
-        results = list(tqdm(pool.imap(find_loop, args), total=len(args)))
-    
-    num_loops = sum(results)
+    num_loops = 0
+    for i in tqdm(range(1, len(candidates))):
+        if find_loop(args[i-1]):
+            num_loops +=1
     print("Answer to part 2:", num_loops)
 
 if __name__ == "__main__":
