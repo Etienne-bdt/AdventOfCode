@@ -134,28 +134,23 @@ def reallocate2(line):
     empty_space = empty_space
     empty =[]
 
-    for i in range(len(data_size)):
-        idw = i
-        size = int(data_size[i])
-        if i != len(empty_space):
-            size_empty = int(empty_space[i])
-        if i == 0:
-            pos = 0
-            pos_empty = size
+    curr_id = 0
+    curr_pos = 0
+    for i in range(len(line)):
+        if i % 2:
+            # si c'est un espace libre
+            empty.append((curr_pos, int(line[i])))
         else:
-            pos  = empty[-1][0] + int(empty[-1][1])
-            pos_empty = pos+size
-        out_line.append((pos, size, idw))
+            # si c'est un fichier
+            out_line.append((curr_pos, int(line[i]), curr_id))
+            curr_id += 1
+        curr_pos += int(line[i])
 
-        if i != len(empty_space):
-            empty.append((pos_empty, size_empty))
-
-    print(out_line)
-    print(empty)
-
+    print("debug:" + str(out_line))
     for i in range(len(out_line)-1,0,-1):
+        # print("debug:" + str(out_line))
         for j in range(len(empty)):
-            if empty[j][1] >= out_line[i][1]:
+            if empty[j][1] >= out_line[i][1] and empty[j][0] < out_line[i][0]:
                 out_line[i] = (empty[j][0], out_line[i][1], out_line[i][2])
                 #order out_line by position
                 empty[j] = (empty[j][0]+out_line[i][1], empty[j][1]-out_line[i][1])
@@ -202,8 +197,9 @@ def main():
     #Got        6264446295468
     reallocated2 = reallocate2(lines[0])
     sum2=0
-    reallocated2 = sorted(reallocated2, key=lambda x: x[0])
 
+    reallocated2.reverse()
+    # print("RESULTAT=:" + str(reallocated2[:300]))
     for i in range(len(reallocated2)):
         for j in range(reallocated2[i][1]):
             sum2 += reallocated2[i][2]*(j+reallocated2[i][0])
