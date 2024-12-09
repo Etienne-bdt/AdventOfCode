@@ -40,17 +40,7 @@ def reallocate(line):
             out.insert(indexes[i]+j, out[-1])
             out.pop()
     return out
-    """
-    for i in range(len(data_size)):
-        data_count = int(data_size[i])
-        for _ in range(data_count):
-            try:
-                idx = out_line.index('.')
-                out_line[idx] = out_line[-1]
-                out_line.pop()
-            except ValueError:
-                return out_line"""
-    
+
 def reallocate_without_segmentation(line):
     len_line = len(line)
     data_size = [line[f] for f in range(0, len_line, 2)]
@@ -154,18 +144,19 @@ def reallocate2(line):
             pos_empty = size
         else:
             pos  = empty[-1][0] + int(empty[-1][1])
-            pos_empty = pos+size_empty
+            pos_empty = pos+size
         out_line.append((pos, size, idw))
 
-        if i != len(empty_space) and size_empty != 0:
-            
+        if i != len(empty_space):
             empty.append((pos_empty, size_empty))
+
+    print(out_line)
+    print(empty)
 
     for i in range(len(out_line)-1,0,-1):
         for j in range(len(empty)):
             if empty[j][1] >= out_line[i][1]:
                 out_line[i] = (empty[j][0], out_line[i][1], out_line[i][2])
-
                 #order out_line by position
                 empty[j] = (empty[j][0]+out_line[i][1], empty[j][1]-out_line[i][1])
                 break
@@ -206,13 +197,13 @@ def main():
     sum = 0
     for i in range(len(reallocated)):
         sum += reallocated[i]*i
-    print(reallocated[-100:])
     print("Answer to part 1: ", sum)
     #Should get 6262891638328
     #Got        6264446295468
     reallocated2 = reallocate2(lines[0])
     sum2=0
     reallocated2 = sorted(reallocated2, key=lambda x: x[0])
+
     for i in range(len(reallocated2)):
         for j in range(reallocated2[i][1]):
             sum2 += reallocated2[i][2]*(j+reallocated2[i][0])
