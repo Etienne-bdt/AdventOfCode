@@ -98,6 +98,14 @@ def calculate_discounted_price(region):
             # Check if opposing
             if not ((i-1,j) in region and (i+1,j) in region) and \
                not ((i,j-1) in region and (i,j+1) in region):
+                if (i-1,j) in region and (i,j-1) in region and (i-1,j-1) not in region:
+                    sides += 1
+                if (i-1,j) in region and (i,j+1) in region and (i-1,j+1) not in region:
+                    sides += 1
+                if (i+1,j) in region and (i,j-1) in region and (i+1,j-1) not in region:
+                    sides += 1
+                if (i+1,j) in region and (i,j+1) in region and (i+1,j+1) not in region:
+                    sides += 1    
                 sides += 1
         # Three neighbors (T-shape) or four neighbors (cross)
         # Count corners where diagonally adjacent cell is not in region
@@ -110,9 +118,7 @@ def calculate_discounted_price(region):
                 sides += 1
             if (i+1,j) in region and (i,j+1) in region and (i+1,j+1) not in region:
                 sides += 1
-        print(i,j,neighbors, sides)
-
-    print("Area: ", area,"Sides: ", sides)
+        
 
     return area * sides
 
@@ -121,7 +127,6 @@ def main():
         lines = [line.strip() for line in f.readlines()]
     
     regions = find_regions(lines)
-    print(regions)
     price = 0
     discounted_price=0
     for region in regions:
