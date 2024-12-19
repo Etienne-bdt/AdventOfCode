@@ -31,18 +31,14 @@ def main():
     with open('./Day19/file.txt') as f:
         lines = f.readlines()
     available_patterns = tuple(lines[0].strip('\n').split(', '))
-    available_patterns_sort = tuple(sorted(available_patterns, key=len, reverse=True))
     wanted_patterns = [line.strip('\n') for line in lines[2:]]
-
-    print(available_patterns)
-    print(available_patterns_sort)
 
     sum = 0
     sum2 = 0
     # Find all combinations of elements of available patterns to match all wanted patterns individually
     # If a pattern is doable using available patterns increment sum by 1
     for wanted_pattern in tqdm(wanted_patterns):
-        if is_doable(available_patterns, wanted_pattern) or is_doable(available_patterns_sort, wanted_pattern):
+        if is_doable(available_patterns, wanted_pattern):
             sum += 1
         sum2 += all_cases(available_patterns, wanted_pattern)
     
